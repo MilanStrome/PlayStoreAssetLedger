@@ -1,0 +1,2171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Asset Ledger ● Play Store Asset Studio</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300..700;1,9..144,300..700&family=JetBrains+Mono:wght@400;500&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<style>
+/* ========== DESIGN TOKENS ========== */
+:root {
+  --paper: #f4efe4;
+  --paper-raised: #faf6ec;
+  --paper-sunk: #ebe5d5;
+  --ink: #1a1612;
+  --ink-soft: #4a3f32;
+  --ink-mute: #867862;
+  --rule: #d9ceb8;
+  --accent: #c34a1e;
+  --accent-soft: #e88d5f;
+  --gold: #8b6f1e;
+
+  --ss-size: 180px;
+  --radius: 3px;
+  --shadow-sm: 0 1px 2px rgba(26,22,18,0.04), 0 2px 8px rgba(26,22,18,0.03);
+  --shadow-md: 0 4px 16px rgba(26,22,18,0.08), 0 12px 40px rgba(26,22,18,0.06);
+  --shadow-lg: 0 20px 60px rgba(26,22,18,0.18);
+  --font-serif: 'Fraunces', Georgia, serif;
+  --font-sans: 'Inter', -apple-system, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+}
+
+[data-theme="dark"] {
+  --paper: #1a1714;
+  --paper-raised: #231f1a;
+  --paper-sunk: #14110e;
+  --ink: #f4efe4;
+  --ink-soft: #d4c9b4;
+  --ink-mute: #8a7f6d;
+  --rule: #3a332a;
+  --accent: #e8704a;
+  --accent-soft: #c34a1e;
+  --gold: #d4a84a;
+  --shadow-sm: 0 1px 2px rgba(0,0,0,0.3), 0 2px 8px rgba(0,0,0,0.2);
+  --shadow-md: 0 4px 16px rgba(0,0,0,0.4), 0 12px 40px rgba(0,0,0,0.3);
+  --shadow-lg: 0 20px 60px rgba(0,0,0,0.6);
+}
+
+/* ========== BASE ========== */
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+body {
+  font-family: var(--font-sans);
+  background: var(--paper);
+  color: var(--ink);
+  min-height: 100vh;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  font-feature-settings: 'ss01', 'cv11';
+  transition: background 0.3s ease, color 0.3s ease;
+}
+
+/* Paper grain texture */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image:
+    radial-gradient(circle at 20% 30%, rgba(0,0,0,0.015) 1px, transparent 1px),
+    radial-gradient(circle at 80% 70%, rgba(0,0,0,0.015) 1px, transparent 1px),
+    radial-gradient(circle at 50% 50%, rgba(0,0,0,0.01) 1px, transparent 1px);
+  background-size: 7px 7px, 11px 11px, 3px 3px;
+  pointer-events: none;
+  z-index: 0;
+  opacity: 0.8;
+}
+[data-theme="dark"] body::before { opacity: 0.4; }
+
+.container {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 56px 32px 96px;
+  position: relative;
+  z-index: 1;
+}
+
+/* ========== MASTHEAD ========== */
+.masthead {
+  border-bottom: 1px solid var(--rule);
+  padding-bottom: 36px;
+  margin-bottom: 48px;
+  position: relative;
+}
+.masthead-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 24px;
+  flex-wrap: wrap;
+}
+.brand { display: flex; align-items: baseline; gap: 16px; flex-wrap: wrap; }
+.brand-mark {
+  font-family: var(--font-serif);
+  font-size: 72px;
+  line-height: 0.95;
+  letter-spacing: -0.04em;
+  font-weight: 300;
+  font-style: italic;
+  font-variation-settings: 'opsz' 144;
+}
+.brand-mark em {
+  font-style: normal;
+  font-weight: 600;
+  color: var(--accent);
+}
+.brand-sub {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.25em;
+  color: var(--ink-mute);
+  text-transform: uppercase;
+  align-self: flex-start;
+  padding-top: 14px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.brand-sub::before {
+  content: '';
+  width: 20px;
+  height: 1px;
+  background: var(--ink-mute);
+}
+.tagline {
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-size: 20px;
+  color: var(--ink-soft);
+  max-width: 640px;
+  margin-top: 12px;
+  font-weight: 400;
+  font-variation-settings: 'opsz' 24;
+}
+
+.masthead-controls {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  padding-top: 8px;
+}
+.icon-btn {
+  width: 38px; height: 38px;
+  background: transparent;
+  border: 1px solid var(--rule);
+  color: var(--ink-soft);
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: var(--radius);
+  transition: all 0.15s;
+  font-size: 15px;
+}
+.icon-btn:hover { border-color: var(--ink); color: var(--ink); background: var(--paper-raised); }
+
+/* ========== CARDS ========== */
+.card {
+  background: var(--paper-raised);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+  padding: 32px;
+  margin-bottom: 24px;
+  box-shadow: var(--shadow-sm);
+  position: relative;
+}
+
+.step-num {
+  position: absolute;
+  top: -14px;
+  left: 24px;
+  background: var(--ink);
+  color: var(--paper);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.15em;
+  padding: 4px 10px;
+  border-radius: var(--radius);
+  font-weight: 500;
+  z-index: 2;
+}
+
+.section-label {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.25em;
+  text-transform: uppercase;
+  color: var(--ink-mute);
+  margin-bottom: 16px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.section-label::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--rule);
+}
+
+.divider { height: 1px; background: var(--rule); margin: 28px 0; border: 0; }
+
+/* ========== BUTTONS ========== */
+.btn {
+  font-family: var(--font-sans);
+  font-weight: 500;
+  font-size: 13px;
+  cursor: pointer;
+  border-radius: var(--radius);
+  transition: all 0.15s ease;
+  display: inline-flex; align-items: center; gap: 8px;
+  letter-spacing: 0.02em;
+  border: 1px solid transparent;
+  white-space: nowrap;
+}
+.btn-primary {
+  background: var(--ink);
+  color: var(--paper);
+  padding: 14px 28px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-size: 12px;
+  border-color: var(--ink);
+}
+.btn-primary:hover:not(:disabled) { background: var(--accent); border-color: var(--accent); }
+.btn-primary:disabled { opacity: 0.4; cursor: not-allowed; }
+.btn-secondary {
+  background: var(--paper-raised);
+  color: var(--ink);
+  border-color: var(--ink);
+  padding: 10px 18px;
+  font-weight: 500;
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.btn-secondary:hover { background: var(--ink); color: var(--paper); }
+.btn-ghost {
+  background: transparent;
+  color: var(--ink-soft);
+  padding: 8px 12px;
+  font-size: 12px;
+  letter-spacing: 0.04em;
+}
+.btn-ghost:hover { color: var(--accent); }
+
+/* ========== INPUTS ========== */
+.ipt, .bulk-ta {
+  background: var(--paper);
+  border: 1px solid var(--rule);
+  padding: 13px 16px;
+  font-size: 14px;
+  font-family: inherit;
+  width: 100%;
+  border-radius: var(--radius);
+  transition: all 0.15s;
+  color: var(--ink);
+}
+.ipt:focus, .bulk-ta:focus {
+  outline: none;
+  border-color: var(--ink);
+  background: var(--paper-raised);
+  box-shadow: 0 0 0 3px rgba(195,74,30,0.08);
+}
+.bulk-ta {
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  line-height: 1.7;
+  resize: vertical;
+  min-height: 130px;
+}
+
+/* Mode toggle (single vs bulk) */
+.mode-toggle {
+  display: inline-flex;
+  gap: 2px;
+  padding: 3px;
+  background: var(--paper-sunk);
+  border-radius: var(--radius);
+  margin-bottom: 16px;
+}
+.mode-btn {
+  border: none;
+  background: transparent;
+  color: var(--ink-mute);
+  padding: 7px 14px;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  border-radius: var(--radius);
+  font-family: var(--font-mono);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  transition: all 0.15s;
+}
+.mode-btn.on { background: var(--paper-raised); color: var(--ink); box-shadow: var(--shadow-sm); }
+
+/* Link row */
+.link-row { display: flex; gap: 10px; align-items: center; margin-bottom: 10px; }
+.link-num {
+  width: 44px; height: 44px;
+  background: var(--ink);
+  color: var(--paper);
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 500;
+  border-radius: var(--radius);
+  flex-shrink: 0;
+  letter-spacing: 0.05em;
+}
+.x-btn {
+  background: var(--paper);
+  border: 1px solid var(--rule);
+  width: 44px; height: 44px;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer;
+  border-radius: var(--radius);
+  color: var(--ink-soft);
+  transition: all 0.15s;
+  flex-shrink: 0;
+  font-size: 14px;
+}
+.x-btn:hover { border-color: var(--accent); color: var(--accent); background: var(--paper-raised); }
+
+/* Bulk hint */
+.bulk-hint {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--ink-mute);
+  margin-top: 10px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.bulk-count {
+  background: var(--paper-sunk);
+  padding: 4px 10px;
+  border-radius: var(--radius);
+  color: var(--ink);
+  font-weight: 500;
+}
+
+/* ========== CHECKBOX CARDS ========== */
+.chk-card {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  padding: 11px 16px;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+  transition: all 0.15s;
+  background: var(--paper);
+  user-select: none;
+  font-size: 13px;
+  font-weight: 500;
+}
+.chk-card:hover { border-color: var(--ink); }
+.chk-card.on {
+  border-color: var(--ink);
+  background: var(--ink);
+  color: var(--paper);
+}
+.chk-box {
+  width: 16px; height: 16px;
+  border: 1.5px solid currentColor;
+  border-radius: 2px;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+/* Size count row */
+.ss-options-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+  font-size: 13px;
+  color: var(--ink-soft);
+  margin-top: 14px;
+  padding: 12px 14px;
+  background: var(--paper);
+  border-radius: var(--radius);
+  border: 1px dashed var(--rule);
+}
+.ss-count-select {
+  padding: 6px 12px;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+  background: var(--paper-raised);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--ink);
+  cursor: pointer;
+}
+
+/* ========== EXTRACT BUTTON ROW ========== */
+.extract-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  justify-content: space-between;
+  flex-wrap: wrap;
+}
+
+/* ========== TOOLBAR (sticky on scroll) ========== */
+.toolbar {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+  padding: 14px 18px;
+  background: var(--paper-raised);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+  position: sticky;
+  top: 16px;
+  z-index: 30;
+  box-shadow: var(--shadow-sm);
+  backdrop-filter: blur(10px);
+}
+.toggle-group {
+  display: flex;
+  gap: 3px;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+  padding: 3px;
+  background: var(--paper);
+}
+.toggle-btn {
+  border: none;
+  background: transparent;
+  color: var(--ink-soft);
+  padding: 7px 13px;
+  border-radius: 2px;
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-family: var(--font-mono);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.15s;
+}
+.toggle-btn:hover { color: var(--ink); }
+.toggle-btn.on { background: var(--ink); color: var(--paper); }
+
+/* Size slider */
+.size-slider-wrap {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 13px;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+  background: var(--paper);
+  font-size: 11px;
+  color: var(--ink-mute);
+  font-family: var(--font-mono);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-weight: 500;
+}
+.size-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100px;
+  height: 2px;
+  background: var(--rule);
+  border-radius: 2px;
+  outline: none;
+  cursor: pointer;
+}
+.size-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 14px; height: 14px;
+  background: var(--ink);
+  border-radius: 50%;
+  cursor: pointer;
+  transition: all 0.1s;
+}
+.size-slider::-webkit-slider-thumb:hover {
+  background: var(--accent);
+  transform: scale(1.25);
+}
+.size-slider::-moz-range-thumb {
+  width: 14px; height: 14px;
+  background: var(--ink);
+  border-radius: 50%;
+  cursor: pointer;
+  border: none;
+}
+.size-value {
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
+  font-weight: 600;
+  min-width: 36px;
+  text-align: right;
+}
+
+/* Export menu */
+.export-menu-wrap { position: relative; }
+.export-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  background: var(--paper-raised);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-md);
+  min-width: 220px;
+  padding: 6px;
+  z-index: 40;
+  display: none;
+}
+.export-menu.open { display: block; }
+.export-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border-radius: 2px;
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--ink);
+  transition: background 0.1s;
+  border: none;
+  background: transparent;
+  width: 100%;
+  text-align: left;
+  font-family: inherit;
+}
+.export-item:hover { background: var(--paper-sunk); }
+.export-item-desc {
+  font-size: 11px;
+  color: var(--ink-mute);
+  display: block;
+  margin-top: 2px;
+}
+.export-item-icon { font-size: 16px; width: 20px; text-align: center; }
+
+/* ========== APP CARD ========== */
+.app-card {
+  background: var(--paper-raised);
+  border: 1px solid var(--rule);
+  padding: 36px;
+  margin-bottom: 24px;
+  border-radius: var(--radius);
+  position: relative;
+  box-shadow: var(--shadow-sm);
+  transition: box-shadow 0.2s;
+}
+.app-card:hover { box-shadow: var(--shadow-md); }
+.app-card::before {
+  content: '';
+  position: absolute;
+  top: 24px; bottom: 24px; left: 0;
+  width: 3px;
+  background: var(--accent);
+}
+
+.app-number-ornament {
+  position: absolute;
+  top: 24px;
+  right: 32px;
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-size: 13px;
+  color: var(--ink-mute);
+  letter-spacing: 0.05em;
+}
+.app-number-ornament em {
+  font-variant-numeric: tabular-nums;
+  color: var(--accent);
+  font-weight: 500;
+}
+
+.app-header {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  margin-bottom: 32px;
+  padding-right: 80px;
+}
+.app-icon-small {
+  width: 80px;
+  height: 80px;
+  border-radius: 18px;
+  border: 1px solid var(--rule);
+  flex-shrink: 0;
+  object-fit: cover;
+  box-shadow: var(--shadow-sm);
+}
+.app-meta { flex: 1; min-width: 0; }
+.app-label {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.2em;
+  color: var(--ink-mute);
+  text-transform: uppercase;
+  margin-bottom: 6px;
+  font-weight: 500;
+}
+.app-name {
+  font-family: var(--font-serif);
+  font-size: 36px;
+  line-height: 1.05;
+  letter-spacing: -0.02em;
+  margin-bottom: 4px;
+  word-break: break-word;
+  font-weight: 400;
+  font-variation-settings: 'opsz' 72;
+}
+.app-dev {
+  font-size: 14px;
+  color: var(--ink-soft);
+  font-style: italic;
+  font-family: var(--font-serif);
+  margin-bottom: 6px;
+}
+.app-pkg {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--ink-mute);
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.app-pkg:hover { color: var(--accent); }
+
+.app-actions { display: flex; gap: 8px; flex-shrink: 0; }
+
+/* ========== ASSET BLOCKS ========== */
+.icon-block, .banner-block { margin-bottom: 28px; }
+
+.icon-display {
+  width: 128px;
+  height: 128px;
+  border-radius: 24px;
+  border: 1px solid var(--rule);
+  cursor: zoom-in;
+  object-fit: cover;
+  transition: transform 0.15s, box-shadow 0.15s;
+  box-shadow: var(--shadow-sm);
+}
+.icon-display:hover { transform: scale(1.03); box-shadow: var(--shadow-md); }
+
+.banner-wrap {
+  position: relative;
+  border-radius: var(--radius);
+  overflow: hidden;
+  border: 1px solid var(--rule);
+  background: var(--paper-sunk);
+  box-shadow: var(--shadow-sm);
+}
+.banner-wrap img { width: 100%; display: block; cursor: zoom-in; }
+.banner-dl {
+  position: absolute;
+  bottom: 14px;
+  right: 14px;
+  background: var(--paper-raised);
+}
+
+/* Asset meta line (dimensions etc.) */
+.asset-meta {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  color: var(--ink-mute);
+  margin-top: 8px;
+  text-transform: uppercase;
+}
+
+/* Screenshots */
+.ss-grid {
+  display: grid;
+  gap: 14px;
+  grid-template-columns: repeat(auto-fill, minmax(var(--ss-size, 180px), 1fr));
+}
+.ss-row {
+  display: flex;
+  gap: 14px;
+  overflow-x: auto;
+  padding-bottom: 12px;
+  scroll-snap-type: x mandatory;
+}
+.ss-row .ss-thumb {
+  flex: 0 0 var(--ss-size, 200px);
+  scroll-snap-align: start;
+}
+
+.ss-thumb {
+  position: relative;
+  overflow: hidden;
+  border-radius: var(--radius);
+  border: 1px solid var(--rule);
+  background: var(--paper-sunk);
+  cursor: zoom-in;
+  transition: transform 0.15s, box-shadow 0.15s;
+  box-shadow: var(--shadow-sm);
+}
+.ss-thumb:hover {
+  transform: translateY(-3px);
+  box-shadow: var(--shadow-md);
+}
+.ss-thumb img { width: 100%; height: auto; display: block; }
+
+.ss-num {
+  position: absolute;
+  top: 8px; left: 8px;
+  background: rgba(26,22,18,0.9);
+  color: var(--paper);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 500;
+  padding: 3px 8px;
+  border-radius: 2px;
+  letter-spacing: 0.08em;
+  backdrop-filter: blur(6px);
+}
+.ss-dl {
+  position: absolute;
+  bottom: 8px; right: 8px;
+  background: rgba(244,239,228,0.95);
+  width: 30px; height: 30px;
+  border-radius: 2px;
+  display: flex;
+  align-items: center; justify-content: center;
+  opacity: 0;
+  transition: opacity 0.15s;
+  cursor: pointer;
+  border: none;
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 600;
+  backdrop-filter: blur(6px);
+}
+.ss-thumb:hover .ss-dl { opacity: 1; }
+
+/* ========== GALLERY ========== */
+.gallery {
+  position: fixed;
+  inset: 0;
+  background: rgba(10,8,6,0.96);
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: galleryFade 0.25s ease-out;
+}
+@keyframes galleryFade { from { opacity: 0; } to { opacity: 1; } }
+.gallery-stage {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 80px 100px 120px;
+  height: 100%;
+  overflow: hidden;
+}
+.gallery-stage img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  border-radius: var(--radius);
+  box-shadow: 0 30px 80px rgba(0,0,0,0.5);
+}
+.gallery-nav {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  background: rgba(255,255,255,0.08);
+  border: 1px solid rgba(255,255,255,0.15);
+  color: #faf6ec;
+  width: 56px; height: 56px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center; justify-content: center;
+  cursor: pointer;
+  font-size: 22px;
+  transition: all 0.15s;
+  backdrop-filter: blur(12px);
+}
+.gallery-nav:hover { background: rgba(255,255,255,0.18); transform: translateY(-50%) scale(1.08); }
+.gallery-nav:disabled { opacity: 0.2; cursor: not-allowed; }
+.gallery-nav.prev { left: 24px; }
+.gallery-nav.next { right: 24px; }
+.gallery-header {
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  padding: 24px 32px;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  color: #faf6ec;
+  background: linear-gradient(to bottom, rgba(0,0,0,0.6), transparent);
+  z-index: 2;
+}
+.gallery-title {
+  font-family: var(--font-serif);
+  font-size: 22px;
+  font-style: italic;
+  font-weight: 400;
+  margin-bottom: 4px;
+}
+.gallery-counter {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.2em;
+  opacity: 0.65;
+  text-transform: uppercase;
+}
+.gallery-actions { display: flex; gap: 10px; align-items: center; }
+.gallery-btn {
+  background: rgba(255,255,255,0.1);
+  border: 1px solid rgba(255,255,255,0.2);
+  color: #faf6ec;
+  padding: 9px 16px;
+  font-size: 11px;
+  cursor: pointer;
+  border-radius: var(--radius);
+  font-family: var(--font-mono);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.15s;
+  font-weight: 500;
+}
+.gallery-btn:hover { background: rgba(255,255,255,0.2); }
+.gallery-close {
+  width: 38px; height: 38px;
+  padding: 0;
+  justify-content: center;
+  font-size: 16px;
+}
+.gallery-thumbs {
+  position: absolute;
+  bottom: 0; left: 0; right: 0;
+  padding: 20px 24px;
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  background: linear-gradient(to top, rgba(0,0,0,0.7), transparent);
+  justify-content: center;
+  scrollbar-width: thin;
+}
+.gallery-thumb {
+  flex: 0 0 64px;
+  height: 96px;
+  border-radius: var(--radius);
+  overflow: hidden;
+  cursor: pointer;
+  border: 2px solid transparent;
+  transition: all 0.15s;
+  opacity: 0.45;
+}
+.gallery-thumb.active { border-color: #faf6ec; opacity: 1; }
+.gallery-thumb:hover { opacity: 1; }
+.gallery-thumb img { width: 100%; height: 100%; object-fit: cover; }
+
+/* ========== STATUS / ERROR ========== */
+.err-box {
+  background: color-mix(in srgb, var(--accent) 8%, var(--paper-raised));
+  border-left: 3px solid var(--accent);
+  padding: 14px 18px;
+  font-size: 13px;
+  margin-bottom: 16px;
+  border-radius: var(--radius);
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  color: var(--ink);
+}
+
+.loader {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 80px 20px;
+  color: var(--ink-mute);
+  gap: 18px;
+}
+.loader-row { display: flex; align-items: center; gap: 14px; }
+.loader-text {
+  font-family: var(--font-serif);
+  font-size: 22px;
+  font-style: italic;
+  color: var(--ink-soft);
+  font-variation-settings: 'opsz' 32;
+}
+.loader-status {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  color: var(--ink-mute);
+  background: var(--paper-raised);
+  border: 1px solid var(--rule);
+  padding: 10px 16px;
+  border-radius: var(--radius);
+  max-width: 520px;
+  text-align: center;
+}
+
+.empty {
+  text-align: center;
+  padding: 80px 20px;
+  color: var(--ink-mute);
+}
+.empty-title {
+  font-family: var(--font-serif);
+  font-size: 32px;
+  font-style: italic;
+  margin-bottom: 12px;
+  color: var(--ink-soft);
+  font-variation-settings: 'opsz' 48;
+  font-weight: 400;
+}
+.empty code {
+  font-family: var(--font-mono);
+  background: var(--paper-sunk);
+  padding: 3px 8px;
+  border-radius: 2px;
+  font-size: 12px;
+}
+.empty-ornament {
+  font-family: var(--font-serif);
+  font-size: 32px;
+  color: var(--accent);
+  font-style: italic;
+  margin-bottom: 16px;
+  font-weight: 300;
+}
+
+.toast {
+  position: fixed;
+  bottom: 32px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--ink);
+  color: var(--paper);
+  padding: 14px 22px;
+  border-radius: var(--radius);
+  font-size: 13px;
+  z-index: 300;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  animation: toastIn 0.3s cubic-bezier(0.16,1,0.3,1);
+  box-shadow: var(--shadow-md);
+  font-family: var(--font-mono);
+  letter-spacing: 0.05em;
+}
+@keyframes toastIn {
+  from { opacity: 0; transform: translate(-50%, 20px); }
+  to { opacity: 1; transform: translate(-50%, 0); }
+}
+
+/* ========== STATS / OVERVIEW ========== */
+.overview {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 0;
+  margin-bottom: 24px;
+  background: var(--paper-raised);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+.overview-stat {
+  padding: 18px 20px;
+  border-right: 1px solid var(--rule);
+  position: relative;
+}
+.overview-stat:last-child { border-right: 0; }
+.overview-label {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--ink-mute);
+  margin-bottom: 6px;
+}
+.overview-value {
+  font-family: var(--font-serif);
+  font-size: 32px;
+  line-height: 1;
+  font-weight: 400;
+  letter-spacing: -0.02em;
+  color: var(--ink);
+  font-variation-settings: 'opsz' 48;
+}
+.overview-sub {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--ink-mute);
+  margin-top: 4px;
+  letter-spacing: 0.05em;
+}
+
+/* ========== ANIMATIONS ========== */
+@keyframes spin { to { transform: rotate(360deg); } }
+.spin { animation: spin 1s linear infinite; }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+.fade { animation: fadeIn 0.5s cubic-bezier(0.16,1,0.3,1); }
+.hidden { display: none !important; }
+
+/* ========== EXPORT FOOTER ========== */
+.footer-export {
+  text-align: center;
+  padding: 24px 0 8px;
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-size: 13px;
+  color: var(--ink-mute);
+  font-weight: 400;
+}
+.footer-export em {
+  color: var(--accent);
+  font-weight: 500;
+  font-style: normal;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  margin: 0 8px;
+}
+
+/* ========== EXPORT MODE: hide interactive elements ========== */
+.exporting .ss-dl,
+.exporting .banner-dl,
+.exporting .app-actions,
+.exporting .icon-block .btn-ghost,
+.exporting .ss-thumb { cursor: default; }
+.exporting .ss-dl,
+.exporting .banner-dl,
+.exporting .app-actions,
+.exporting .icon-block .btn-ghost { display: none !important; }
+
+/* ========== RESPONSIVE ========== */
+@media (max-width: 720px) {
+  .brand-mark { font-size: 52px; }
+  .container { padding: 32px 18px 60px; }
+  .card { padding: 24px; }
+  .app-card { padding: 24px; }
+  .app-header { flex-wrap: wrap; padding-right: 0; }
+  .app-number-ornament { position: static; margin-bottom: 8px; }
+  .extract-row { flex-direction: column; align-items: stretch; }
+  .extract-row .btn-primary { justify-content: center; }
+  .toolbar { position: static; }
+  .overview-stat { border-right: 0; border-bottom: 1px solid var(--rule); }
+  .overview-stat:last-child { border-bottom: 0; }
+}
+</style>
+</head>
+<body>
+<div class="container">
+
+  <!-- ========== MASTHEAD ========== -->
+  <header class="masthead">
+    <div class="masthead-row">
+      <div>
+        <div class="brand">
+          <div class="brand-mark"><em>Asset Ledger</em><span style="font-family: var(--font-serif); font-style: italic; font-weight: 300;">.</span></div>
+          <div class="brand-sub">Play Store Asset Studio</div>
+        </div>
+        <div class="tagline">
+          Pulls assets (icon/banner/screenshots) from Google Play listings.
+        </div>
+      </div>
+      <div class="masthead-controls">
+        <button class="icon-btn" id="themeBtn" onclick="toggleTheme()" title="Toggle theme">☾</button>
+        <button class="icon-btn" onclick="resetAll()" title="Clear all">↺</button>
+      </div>
+    </div>
+  </header>
+
+  <!-- ========== INPUT CARD ========== -->
+  <section class="card">
+    <div class="step-num">01 · Sources</div>
+
+    <div style="display: flex; align-items: center; gap: 16px; justify-content: space-between; flex-wrap: wrap; margin-bottom: 16px;">
+      <div class="section-label" style="margin-bottom: 0;">Play Store Links</div>
+      <div class="mode-toggle">
+        <button class="mode-btn on" id="modeSingle" onclick="setInputMode('single')">One by one</button>
+        <button class="mode-btn" id="modeBulk" onclick="setInputMode('bulk')">Bulk paste</button>
+      </div>
+    </div>
+
+    <div id="singleMode">
+      <div id="linksContainer"></div>
+      <button class="btn btn-ghost" onclick="addLink()" style="margin-top: 4px;">＋ Add another link</button>
+    </div>
+
+    <div id="bulkMode" class="hidden">
+      <textarea class="bulk-ta" id="bulkInput" placeholder="Paste multiple Play Store links here — separated by new lines, commas, or spaces.
+
+https://play.google.com/store/apps/details?id=com.example.one
+https://play.google.com/store/apps/details?id=com.example.two
+..."></textarea>
+      <div class="bulk-hint">
+        <span>Separators: newlines, commas, tabs, or spaces</span>
+        <span class="bulk-count" id="bulkCount">0 links detected</span>
+      </div>
+    </div>
+
+    <hr class="divider" />
+
+    <div class="section-label">Collect</div>
+    <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+      <label class="chk-card" id="chk-icon" onclick="toggleOption('icon')">
+        <div class="chk-box" id="check-icon-box"></div> Icon
+      </label>
+      <label class="chk-card" id="chk-banner" onclick="toggleOption('banner')">
+        <div class="chk-box" id="check-banner-box"></div> Feature Banner
+      </label>
+      <label class="chk-card on" id="chk-screenshots" onclick="toggleOption('screenshots')">
+        <div class="chk-box" id="check-screenshots-box">✓</div> Screenshots
+      </label>
+    </div>
+
+    <div id="ssCountRow" class="ss-options-row">
+      <span>Collect first</span>
+      <select id="ssCount" class="ss-count-select" onchange="updateSsCount()">
+        <option>4</option><option>6</option><option selected>8</option>
+        <option>10</option><option>12</option><option>15</option><option>20</option>
+      </select>
+      <span>screenshots per app</span>
+    </div>
+
+    <hr class="divider" />
+
+    <div class="extract-row">
+      <button class="btn btn-primary" id="extractBtn" onclick="extract()">
+        <span id="extractBtnText">◈ Fetch Assets</span>
+      </button>
+      <div id="statsLine" class="hidden" style="font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-mute);"></div>
+    </div>
+
+    <div id="errorBox" class="err-box hidden" style="margin-top: 18px; margin-bottom: 0;"></div>
+  </section>
+
+  <!-- ========== OVERVIEW STATS ========== -->
+  <div id="overview" class="overview hidden"></div>
+
+  <!-- ========== TOOLBAR ========== -->
+  <section id="toolbar" class="toolbar hidden fade">
+    <div class="toggle-group">
+      <button class="toggle-btn on" id="layoutGrid" onclick="setLayout('grid')">▦ Grid</button>
+      <button class="toggle-btn" id="layoutRow" onclick="setLayout('row')">☰ Row</button>
+    </div>
+    <div class="size-slider-wrap">
+      <span>Size</span>
+      <input type="range" class="size-slider" id="sizeSlider" min="100" max="320" value="180" step="10" oninput="setScreenshotSize(this.value)" />
+      <span class="size-value" id="sizeValue">180px</span>
+    </div>
+    <div class="toggle-group">
+      <button class="toggle-btn" id="numbersToggle" onclick="toggleNumbers()" title="Show/hide numbering on screenshots">№ Numbers</button>
+    </div>
+    <button class="btn btn-secondary" onclick="copyAllUrls()">
+      <span id="copyBtnText">⎘ Copy URLs</span>
+    </button>
+    <div style="flex: 1;"></div>
+    <div class="export-menu-wrap">
+      <button class="btn btn-primary" id="exportMenuBtn" onclick="toggleExportMenu(event)">↓ Export ▾</button>
+      <div class="export-menu" id="exportMenu">
+        <button class="export-item" onclick="exportFullPage('png')">
+          <span class="export-item-icon">◼</span>
+          <div>PNG Image<span class="export-item-desc">Full page, lossless</span></div>
+        </button>
+        <button class="export-item" onclick="exportFullPage('jpg')">
+          <span class="export-item-icon">◧</span>
+          <div>JPG Image<span class="export-item-desc">Full page, compressed</span></div>
+        </button>
+        <button class="export-item" onclick="exportFullPage('pdf')">
+          <span class="export-item-icon">❏</span>
+          <div>PDF Document<span class="export-item-desc">Multi-page, print-ready</span></div>
+        </button>
+        <button class="export-item" onclick="exportZip()">
+          <span class="export-item-icon">⊞</span>
+          <div>ZIP Archive<span class="export-item-desc">All originals, foldered by app</span></div>
+        </button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========== LOADER ========== -->
+  <div id="loader" class="loader hidden">
+    <div class="loader-row">
+      <div style="width:18px; height:18px; border:2px solid var(--rule); border-top-color: var(--accent); border-radius:50%;" class="spin"></div>
+      <span class="loader-text">Fetching from Google Play...</span>
+    </div>
+    <div class="loader-status" id="loaderStatus">Initializing...</div>
+  </div>
+
+  <div id="errorApps"></div>
+  <div id="results"></div>
+
+  <div id="emptyState" class="empty">
+    <div class="empty-ornament">※</div>
+    <div class="empty-title">Paste a Play Store link above to begin.</div>
+    <div style="font-size: 13px; margin-top: 6px;">
+      Full URLs or the <code>?id=com.example</code> fragment both work.
+    </div>
+  </div>
+
+</div>
+
+<!-- ========== FULLSCREEN GALLERY ========== -->
+<div id="gallery" class="gallery hidden">
+  <div class="gallery-header">
+    <div>
+      <div class="gallery-title" id="galleryTitle"></div>
+      <div class="gallery-counter" id="galleryCounter"></div>
+    </div>
+    <div class="gallery-actions">
+      <button class="gallery-btn" id="galleryDl" onclick="downloadGalleryCurrent()">↓ Download</button>
+      <button class="gallery-btn gallery-close" onclick="closeGallery()">✕</button>
+    </div>
+  </div>
+  <button class="gallery-nav prev" id="galleryPrev" onclick="navGallery(-1)">‹</button>
+  <div class="gallery-stage" id="galleryStage" onclick="closeGallery()">
+    <img id="galleryImg" src="" alt="" onclick="event.stopPropagation()" />
+  </div>
+  <button class="gallery-nav next" id="galleryNext" onclick="navGallery(1)">›</button>
+  <div class="gallery-thumbs" id="galleryThumbs"></div>
+</div>
+
+<!-- ========== TOAST ========== -->
+<div id="toast" class="toast hidden">
+  <span id="toastMsg">Copied</span>
+</div>
+
+<script>
+// ============== STATE ==============
+const state = {
+  inputMode: 'single',
+  links: [''],
+  bulkInput: '',
+  options: { icon: false, banner: false, screenshots: true },
+  screenshotCount: 8,
+  screenshotSize: 180,
+  showNumbers: false,
+  apps: [],
+  loading: false,
+  layout: 'grid',
+  theme: 'light',
+  gallery: { open: false, items: [], index: 0, appName: '', appIdx: 0 },
+};
+
+// Load persisted preferences
+try {
+  const saved = JSON.parse(localStorage.getItem('harvester_prefs') || '{}');
+  if (saved.options) Object.assign(state.options, saved.options);
+  if (saved.screenshotCount) state.screenshotCount = saved.screenshotCount;
+  if (saved.screenshotSize) state.screenshotSize = saved.screenshotSize;
+  if (saved.layout) state.layout = saved.layout;
+  if (saved.theme) state.theme = saved.theme;
+  if (typeof saved.showNumbers === 'boolean') state.showNumbers = saved.showNumbers;
+} catch {}
+
+function savePrefs() {
+  try {
+    localStorage.setItem('harvester_prefs', JSON.stringify({
+      options: state.options,
+      screenshotCount: state.screenshotCount,
+      screenshotSize: state.screenshotSize,
+      layout: state.layout,
+      theme: state.theme,
+      showNumbers: state.showNumbers,
+    }));
+  } catch {}
+}
+
+// ============== HELPERS ==============
+const el = (id) => document.getElementById(id);
+const safeName = (s) => (s || '').replace(/[^a-z0-9]/gi, '_').slice(0, 30);
+const escapeHtml = (s) => String(s || '').replace(/[&<>"']/g, (c) =>
+  ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const setStatus = (msg) => { el('loaderStatus').textContent = msg; };
+
+// ============== THEME ==============
+function applyTheme(t) {
+  state.theme = t;
+  document.documentElement.setAttribute('data-theme', t);
+  el('themeBtn').textContent = t === 'dark' ? '☼' : '☾';
+  savePrefs();
+}
+function toggleTheme() { applyTheme(state.theme === 'dark' ? 'light' : 'dark'); }
+
+// ============== INPUT MODE ==============
+function setInputMode(mode) {
+  state.inputMode = mode;
+  el('modeSingle').classList.toggle('on', mode === 'single');
+  el('modeBulk').classList.toggle('on', mode === 'bulk');
+  el('singleMode').classList.toggle('hidden', mode !== 'single');
+  el('bulkMode').classList.toggle('hidden', mode !== 'bulk');
+}
+
+// Bulk input parser
+function parseBulkLinks(text) {
+  if (!text) return [];
+  // Split on newlines, commas, tabs, or whitespace runs
+  const tokens = text.split(/[\s,\n\r\t]+/).map((t) => t.trim()).filter(Boolean);
+  const urls = [];
+  for (const tok of tokens) {
+    // Try to extract a valid URL or package id from each token
+    if (tok.startsWith('http')) urls.push(tok);
+    else if (tok.match(/^[a-z][a-z0-9_.]*\.[a-z][a-z0-9_.]*/i) && !tok.startsWith('http')) {
+      // Looks like a package id (com.example.app)
+      urls.push(`https://play.google.com/store/apps/details?id=${tok}`);
+    }
+  }
+  return urls;
+}
+function updateBulkCount() {
+  const text = el('bulkInput').value;
+  const parsed = parseBulkLinks(text);
+  el('bulkCount').textContent = `${parsed.length} link${parsed.length !== 1 ? 's' : ''} detected`;
+  state.bulkInput = text;
+}
+
+// ============== LINKS (single mode) ==============
+function renderLinks() {
+  const c = el('linksContainer');
+  c.innerHTML = '';
+  state.links.forEach((link, i) => {
+    const row = document.createElement('div');
+    row.className = 'link-row';
+    row.innerHTML = `
+      <div class="link-num">${String(i + 1).padStart(2, '0')}</div>
+      <input type="text" class="ipt" placeholder="https://play.google.com/store/apps/details?id=..." value="${escapeHtml(link)}" />
+      ${state.links.length > 1 ? `<button class="x-btn" title="Remove" onclick="removeLink(${i})">✕</button>` : ''}`;
+    const input = row.querySelector('input');
+    input.addEventListener('input', (e) => { state.links[i] = e.target.value; });
+    input.addEventListener('keydown', (e) => { if (e.key === 'Enter' && !state.loading) extract(); });
+    c.appendChild(row);
+  });
+}
+function addLink() { state.links.push(''); renderLinks(); }
+function removeLink(i) { state.links.splice(i, 1); if (!state.links.length) state.links.push(''); renderLinks(); }
+
+// ============== OPTIONS / TOGGLES ==============
+function applyOptionVisuals(key) {
+  const card = el('chk-' + key);
+  const box = el('check-' + key + '-box');
+  if (state.options[key]) { card.classList.add('on'); box.textContent = '✓'; }
+  else { card.classList.remove('on'); box.textContent = ''; }
+}
+function toggleOption(key) {
+  state.options[key] = !state.options[key];
+  applyOptionVisuals(key);
+  el('ssCountRow').style.display = state.options.screenshots ? 'flex' : 'none';
+  if (state.apps.length) renderResults();
+  savePrefs();
+}
+function updateSsCount() {
+  state.screenshotCount = Number(el('ssCount').value);
+  if (state.apps.length) renderResults();
+  savePrefs();
+}
+function setLayout(mode) {
+  state.layout = mode;
+  el('layoutGrid').classList.toggle('on', mode === 'grid');
+  el('layoutRow').classList.toggle('on', mode === 'row');
+  if (state.apps.length) renderResults();
+  savePrefs();
+}
+function setScreenshotSize(px) {
+  state.screenshotSize = Number(px);
+  el('sizeValue').textContent = `${px}px`;
+  document.documentElement.style.setProperty('--ss-size', `${px}px`);
+  if (el('sizeSlider').value != px) el('sizeSlider').value = px;
+  savePrefs();
+}
+function toggleNumbers() {
+  state.showNumbers = !state.showNumbers;
+  el('numbersToggle').classList.toggle('on', state.showNumbers);
+  if (state.apps.length) renderResults();
+  savePrefs();
+}
+
+// ============== RESET ==============
+function resetAll() {
+  if (!confirm('Clear all links and results?')) return;
+  state.links = [''];
+  state.bulkInput = '';
+  state.apps = [];
+  el('bulkInput').value = '';
+  updateBulkCount();
+  renderLinks();
+  renderResults();
+  el('emptyState').classList.remove('hidden');
+  el('toolbar').classList.add('hidden');
+  el('overview').classList.add('hidden');
+  el('errorApps').innerHTML = '';
+  hideError();
+}
+
+// ============== URL / IMAGE HELPERS ==============
+function getPackageId(url) {
+  try { return new URL(url.trim()).searchParams.get('id'); }
+  catch { return null; }
+}
+function stripSize(url) { return (url || '').replace(/=[^=]*$/, ''); }
+function upgradeImgUrl(url, targetW = 2048) {
+  if (!url) return url;
+  const h = Math.round(targetW * 1.78);
+  return url.replace(/=[^=]*$/, `=w${targetW}-h${h}-rw`);
+}
+function displayImgUrl(url, targetW = 640) {
+  if (!url) return url;
+  const h = Math.round(targetW * 1.78);
+  return url.replace(/=[^=]*$/, `=w${targetW}-h${h}-rw`);
+}
+
+// ============== CORS PROXY FETCH ==============
+function fetchWithTimeout(url, ms = 15000) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), ms);
+  return fetch(url, { signal: controller.signal })
+    .finally(() => clearTimeout(timer));
+}
+
+const PROXIES = [
+  { name: 'codetabs', build: (u) => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(u)}` },
+  { name: 'allorigins', build: (u) => `https://api.allorigins.win/get?url=${encodeURIComponent(u)}`, unwrap: true },
+  { name: 'cors.lol', build: (u) => `https://api.cors.lol/?url=${encodeURIComponent(u)}` },
+  { name: 'corsproxy.io', build: (u) => `https://corsproxy.io/?url=${encodeURIComponent(u)}` },
+  { name: 'thingproxy', build: (u) => `https://thingproxy.freeboard.io/fetch/${u}` },
+];
+
+async function fetchViaProxy(targetUrl, onProgress) {
+  const errors = [];
+  for (const p of PROXIES) {
+    try {
+      if (onProgress) onProgress(`Trying ${p.name}...`);
+      const res = await fetchWithTimeout(p.build(targetUrl), 18000);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      let text = await res.text();
+      if (p.unwrap) {
+        try { text = JSON.parse(text).contents || ''; }
+        catch { throw new Error('JSON unwrap failed'); }
+      }
+      if (!text || text.length < 5000) throw new Error(`response too small (${text.length}b)`);
+      if (!text.includes('play-lh.googleusercontent.com') && !text.includes('og:image')) {
+        throw new Error('response not a Play Store page');
+      }
+      if (onProgress) onProgress(`✓ via ${p.name}`);
+      return text;
+    } catch (e) {
+      errors.push(`${p.name}: ${e.name === 'AbortError' ? 'timeout' : e.message}`);
+    }
+  }
+  throw new Error('All proxies failed. ' + errors.join(' · '));
+}
+
+// ============== PARSE PLAY STORE HTML ==============
+function parsePage(html, packageId) {
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(html, 'text/html');
+
+  let name =
+    doc.querySelector('[itemprop="name"] span')?.textContent?.trim() ||
+    doc.querySelector('[itemprop="name"]')?.textContent?.trim() ||
+    doc.querySelector('h1 span')?.textContent?.trim() ||
+    doc.querySelector('h1')?.textContent?.trim() ||
+    doc.querySelector('meta[property="og:title"]')?.content ||
+    packageId;
+  name = name.replace(/\s*-\s*Apps on Google Play\s*$/i, '').trim();
+
+  const developer =
+    doc.querySelector('a[href*="/store/apps/dev"] span')?.textContent?.trim() ||
+    doc.querySelector('a[href*="/store/apps/dev"]')?.textContent?.trim() || '';
+
+  const iconImg = doc.querySelector('img[alt="Icon image"]');
+  let icon = '';
+  if (iconImg) {
+    const srcset = iconImg.getAttribute('srcset');
+    if (srcset) {
+      const m = srcset.match(/(https:\/\/play-lh\.googleusercontent\.com\/\S+)\s+2x/);
+      if (m) icon = m[1];
+    }
+    if (!icon) icon = iconImg.getAttribute('src') || '';
+  }
+  if (!icon) icon = doc.querySelector('meta[property="og:image"]')?.content || '';
+  icon = upgradeImgUrl(icon, 512);
+
+  const ssImgs = Array.from(doc.querySelectorAll('img[alt="Screenshot image"], img[alt^="Screenshot image"]'));
+  let screenshots = ssImgs.map((img) => {
+    const srcset = img.getAttribute('srcset');
+    let url = '';
+    if (srcset) {
+      const m = srcset.match(/(https:\/\/play-lh\.googleusercontent\.com\/\S+)\s+2x/);
+      if (m) url = m[1];
+    }
+    if (!url) url = img.getAttribute('src') || '';
+    return { url: upgradeImgUrl(url, 2048), img };
+  }).filter((x) => x.url);
+
+  screenshots.sort((a, b) => {
+    const ai = parseInt(a.img.getAttribute('data-screenshot-index') || '999', 10);
+    const bi = parseInt(b.img.getAttribute('data-screenshot-index') || '999', 10);
+    return ai - bi;
+  });
+
+  const seen = new Set();
+  const ssUnique = [];
+  screenshots.forEach(({ url }) => {
+    const base = stripSize(url);
+    if (!seen.has(base)) { seen.add(base); ssUnique.push(url); }
+  });
+
+  const allImgs = new Set();
+  doc.querySelectorAll('img').forEach((img) => {
+    const src = img.getAttribute('src');
+    if (src && src.includes('play-lh.googleusercontent.com')) allImgs.add(src);
+    const srcset = img.getAttribute('srcset');
+    if (srcset) {
+      srcset.split(',').forEach((part) => {
+        const u = part.trim().split(' ')[0];
+        if (u.includes('play-lh.googleusercontent.com')) allImgs.add(u);
+      });
+    }
+  });
+  const re = /https:\/\/play-lh\.googleusercontent\.com\/[A-Za-z0-9_\-]+=w\d+-h\d+(?:-[a-z]+)?/g;
+  (html.match(re) || []).forEach((u) => allImgs.add(u));
+
+  const iconBase = stripSize(icon);
+  const ssBases = new Set(ssUnique.map(stripSize));
+
+  let banner = '';
+  for (const u of allImgs) {
+    const base = stripSize(u);
+    if (base === iconBase || ssBases.has(base)) continue;
+    const m = u.match(/=w(\d+)-h(\d+)/);
+    if (m) {
+      const w = +m[1], h = +m[2];
+      if (w > h && w / h > 1.5) { banner = upgradeImgUrl(u, 1024); break; }
+    }
+  }
+
+  return {
+    packageId, name, developer,
+    icon, banner, screenshots: ssUnique,
+    url: `https://play.google.com/store/apps/details?id=${packageId}`,
+  };
+}
+
+// ============== EXTRACT FLOW ==============
+async function extract() {
+  hideError();
+  // Get links based on input mode
+  let linkList = [];
+  if (state.inputMode === 'bulk') {
+    linkList = parseBulkLinks(el('bulkInput').value);
+  } else {
+    linkList = state.links.map((l) => l.trim()).filter(Boolean);
+  }
+
+  if (!linkList.length) {
+    showError('Please enter at least one Play Store link');
+    return;
+  }
+
+  if (!state.options.icon && !state.options.banner && !state.options.screenshots) {
+    showError('Select at least one asset type (Icon, Feature Banner, or Screenshots)');
+    return;
+  }
+
+  state.loading = true;
+  state.apps = [];
+  el('loader').classList.remove('hidden');
+  el('toolbar').classList.add('hidden');
+  el('overview').classList.add('hidden');
+  el('results').innerHTML = '';
+  el('errorApps').innerHTML = '';
+  el('emptyState').classList.add('hidden');
+  el('extractBtn').disabled = true;
+  el('extractBtnText').textContent = '◌ Fetching...';
+  setStatus('Starting...');
+
+  const out = [];
+  for (let i = 0; i < linkList.length; i++) {
+    const link = linkList[i];
+    const pkg = getPackageId(link);
+    setStatus(`App ${i + 1} of ${linkList.length} — ${pkg || 'parsing URL'}`);
+
+    if (!pkg) { out.push({ error: true, url: link, message: 'Not a valid Play Store URL' }); continue; }
+    try {
+      const url = `https://play.google.com/store/apps/details?id=${pkg}&hl=en&gl=US`;
+      const html = await fetchViaProxy(url, (msg) => setStatus(`App ${i + 1} of ${linkList.length} — ${msg}`));
+      const parsed = parsePage(html, pkg);
+      if (!parsed.icon && !parsed.screenshots.length) {
+        out.push({ error: true, url: link, message: 'Page fetched but no assets found — Play Store layout may have changed.' });
+      } else {
+        out.push(parsed);
+      }
+    } catch (e) {
+      out.push({ error: true, url: link, message: e.message });
+    }
+  }
+
+  state.apps = out;
+  state.loading = false;
+  el('loader').classList.add('hidden');
+  el('extractBtn').disabled = false;
+  el('extractBtnText').textContent = '◈ Fetch Assets';
+  renderResults();
+}
+
+// ============== RENDER ==============
+function renderOverview() {
+  const validApps = state.apps.filter((a) => !a.error);
+  if (!validApps.length) {
+    el('overview').classList.add('hidden');
+    return;
+  }
+
+  let iconCount = 0, bannerCount = 0, ssCount = 0;
+  validApps.forEach((a) => {
+    if (a.icon) iconCount++;
+    if (a.banner) bannerCount++;
+    ssCount += a.screenshots.length;
+  });
+  const shownSs = validApps.reduce((s, a) => s + Math.min(a.screenshots.length, state.screenshotCount), 0);
+
+  el('overview').innerHTML = `
+    <div class="overview-stat">
+      <div class="overview-label">Apps</div>
+      <div class="overview-value">${validApps.length.toString().padStart(2, '0')}</div>
+      <div class="overview-sub">${state.apps.length - validApps.length > 0 ? (state.apps.length - validApps.length) + ' failed' : 'all extracted'}</div>
+    </div>
+    <div class="overview-stat">
+      <div class="overview-label">Icons</div>
+      <div class="overview-value">${iconCount.toString().padStart(2, '0')}</div>
+      <div class="overview-sub">app marks</div>
+    </div>
+    <div class="overview-stat">
+      <div class="overview-label">Banners</div>
+      <div class="overview-value">${bannerCount.toString().padStart(2, '0')}</div>
+      <div class="overview-sub">feature graphics</div>
+    </div>
+    <div class="overview-stat">
+      <div class="overview-label">Screenshots</div>
+      <div class="overview-value">${shownSs.toString().padStart(2, '0')}</div>
+      <div class="overview-sub">of ${ssCount} available</div>
+    </div>
+  `;
+  el('overview').classList.remove('hidden');
+}
+
+function renderResults() {
+  const validApps = state.apps.filter((a) => !a.error);
+  const errorApps = state.apps.filter((a) => a.error);
+
+  // Error boxes
+  const errC = el('errorApps');
+  errC.innerHTML = '';
+  errorApps.forEach((e) => {
+    const box = document.createElement('div');
+    box.className = 'err-box fade';
+    box.innerHTML = `
+      <span style="font-weight:700; font-size: 15px; color: var(--accent);">⚠</span>
+      <div style="flex:1;">
+        <div style="font-weight: 600; margin-bottom: 4px;">${escapeHtml(e.message)}</div>
+        <div style="font-family: var(--font-mono); font-size: 11px; color: var(--ink-mute); word-break: break-all;">${escapeHtml(e.url)}</div>
+      </div>`;
+    errC.appendChild(box);
+  });
+
+  // Stats line (simple count)
+  const statsEl = el('statsLine');
+  if (state.apps.length) {
+    let total = 0;
+    validApps.forEach((a) => {
+      if (state.options.icon && a.icon) total++;
+      if (state.options.banner && a.banner) total++;
+      if (state.options.screenshots) total += Math.min(a.screenshots.length, state.screenshotCount);
+    });
+    statsEl.textContent = `${validApps.length} app${validApps.length !== 1 ? 's' : ''} · ${total} asset${total !== 1 ? 's' : ''}`;
+    statsEl.classList.remove('hidden');
+  } else {
+    statsEl.classList.add('hidden');
+  }
+
+  renderOverview();
+
+  if (validApps.length > 0) {
+    el('toolbar').classList.remove('hidden');
+    el('emptyState').classList.add('hidden');
+  } else if (!state.apps.length) {
+    el('emptyState').classList.remove('hidden');
+  }
+
+  const resultsEl = el('results');
+  resultsEl.innerHTML = '';
+  if (!validApps.length) return;
+
+  const wrapper = document.createElement('div');
+  wrapper.id = 'exportArea';
+  wrapper.style.cssText = 'background: var(--paper); padding: 4px;';
+
+  validApps.forEach((app, idx) => {
+    const card = document.createElement('article');
+    card.className = 'app-card fade';
+    const safe = safeName(app.name);
+
+    let html = `
+      <div class="app-number-ornament">No. <em>${String(idx + 1).padStart(2, '0')}</em></div>
+      <div class="app-header">`;
+    if (app.icon) {
+      html += `<img class="app-icon-small" src="${escapeHtml(app.icon)}" alt="" crossorigin="anonymous" onerror="this.style.display='none'" />`;
+    }
+    html += `
+      <div class="app-meta">
+        <div class="app-label">Application</div>
+        <div class="app-name">${escapeHtml(app.name)}</div>
+        ${app.developer ? `<div class="app-dev">by ${escapeHtml(app.developer)}</div>` : ''}
+        <a href="${escapeHtml(app.url)}" target="_blank" rel="noopener" class="app-pkg">↗ ${escapeHtml(app.packageId)}</a>
+      </div>
+      <div class="app-actions">
+        <button class="btn btn-ghost" onclick='hideApp(${idx})' title="Remove from results">✕</button>
+        <button class="btn btn-secondary" onclick='downloadAllForApp(${idx})'>↓ All</button>
+      </div>
+    </div>`;
+
+    if (state.options.icon && app.icon) {
+      html += `
+        <div class="icon-block">
+          <div class="section-label">Icon</div>
+          <div style="display: flex; gap: 20px; align-items: center;">
+            <img class="icon-display" src="${escapeHtml(app.icon)}" alt="icon" crossorigin="anonymous"
+                 onclick='openGallery(${idx}, "icon")' />
+            <div>
+              <button class="btn btn-ghost" onclick='downloadImage(${JSON.stringify(app.icon)}, "${safe}_icon.jpg")'>↓ Download</button>
+              <div class="asset-meta">512 × 512 · App mark</div>
+            </div>
+          </div>
+        </div>`;
+    }
+
+    if (state.options.banner && app.banner) {
+      const bannerDisplay = displayImgUrl(app.banner, 1024);
+      html += `
+        <div class="banner-block">
+          <div class="section-label">Feature Banner</div>
+          <div class="banner-wrap">
+            <img src="${escapeHtml(bannerDisplay)}" alt="banner" crossorigin="anonymous"
+                 onclick='openGallery(${idx}, "banner")'
+                 onerror="this.parentElement.parentElement.style.display='none'" />
+            <button class="btn btn-secondary banner-dl"
+                    onclick='event.stopPropagation(); downloadImage(${JSON.stringify(app.banner)}, "${safe}_banner.jpg")'>↓</button>
+          </div>
+          <div class="asset-meta">1024 × 500 · Feature graphic</div>
+        </div>`;
+    }
+
+    if (state.options.screenshots && app.screenshots.length) {
+      const shown = Math.min(app.screenshots.length, state.screenshotCount);
+      html += `
+        <div>
+          <div class="section-label">Screenshots · ${shown} of ${app.screenshots.length}</div>
+          <div class="${state.layout === 'grid' ? 'ss-grid' : 'ss-row'}">`;
+      app.screenshots.slice(0, state.screenshotCount).forEach((src, i) => {
+        const ds = displayImgUrl(src, 640);
+        html += `
+          <div class="ss-thumb" onclick='openGallery(${idx}, ${i})'>
+            <img src="${escapeHtml(ds)}" alt="screenshot ${i + 1}" crossorigin="anonymous" loading="lazy" />
+            ${state.showNumbers ? `<div class="ss-num">${String(i + 1).padStart(2, '0')}</div>` : ''}
+            <button class="ss-dl" title="Download"
+                    onclick='event.stopPropagation(); downloadImage(${JSON.stringify(src)}, "${safe}_ss_${i + 1}.jpg")'>↓</button>
+          </div>`;
+      });
+      html += `</div></div>`;
+    }
+
+    card.innerHTML = html;
+    wrapper.appendChild(card);
+  });
+
+  const footer = document.createElement('div');
+  footer.className = 'footer-export';
+  footer.innerHTML = `Fetched with <em>Fetch Assets</em> ● BUILT AS A TOOL, USED LIKE A WEAPON.`;
+  wrapper.appendChild(footer);
+
+  resultsEl.appendChild(wrapper);
+}
+
+// Hide an app from results (doesn't re-fetch)
+function hideApp(idx) {
+  const validApps = state.apps.filter((a) => !a.error);
+  const target = validApps[idx];
+  if (!target) return;
+  state.apps = state.apps.filter((a) => a !== target);
+  renderResults();
+}
+
+// ============== DOWNLOADS ==============
+async function downloadImage(url, filename) {
+  try {
+    const r = await fetchWithTimeout(url, 10000);
+    if (!r.ok) throw new Error('status ' + r.status);
+    const blob = await r.blob();
+    triggerDownload(blob, filename);
+    return;
+  } catch {}
+  try {
+    const r = await fetchWithTimeout(`https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(url)}`, 18000);
+    const blob = await r.blob();
+    triggerDownload(blob, filename);
+    return;
+  } catch {}
+  window.open(url, '_blank');
+}
+function triggerDownload(blob, filename) {
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+}
+
+window.downloadAllForApp = async function (idx) {
+  const app = state.apps.filter((a) => !a.error)[idx];
+  if (!app) return;
+  const safe = safeName(app.name);
+  showToast('Downloading...');
+  if (state.options.icon && app.icon) await downloadImage(app.icon, `${safe}_icon.jpg`);
+  if (state.options.banner && app.banner) await downloadImage(app.banner, `${safe}_banner.jpg`);
+  if (state.options.screenshots) {
+    const shots = app.screenshots.slice(0, state.screenshotCount);
+    for (let i = 0; i < shots.length; i++) {
+      await downloadImage(shots[i], `${safe}_screenshot_${i + 1}.jpg`);
+    }
+  }
+  showToast('Downloads complete');
+};
+
+// ============== EXPORT MENU ==============
+function toggleExportMenu(e) {
+  e?.stopPropagation();
+  const menu = el('exportMenu');
+  menu.classList.toggle('open');
+}
+document.addEventListener('click', (e) => {
+  const menu = el('exportMenu');
+  const btn = el('exportMenuBtn');
+  if (menu && !menu.contains(e.target) && e.target !== btn && !btn.contains(e.target)) {
+    menu.classList.remove('open');
+  }
+});
+
+// Fetch image as blob via CORS proxy chain
+async function fetchImageBlob(url) {
+  try {
+    const r = await fetchWithTimeout(url, 10000);
+    if (r.ok) return await r.blob();
+  } catch {}
+  try {
+    const r = await fetchWithTimeout(`https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(url)}`, 18000);
+    if (r.ok) return await r.blob();
+  } catch {}
+  return null;
+}
+
+// ============== FULL PAGE EXPORT (PNG/JPG/PDF) ==============
+async function exportFullPage(format) {
+  el('exportMenu').classList.remove('open');
+  const area = el('exportArea');
+  if (!area) return;
+  const btn = el('exportMenuBtn');
+  btn.disabled = true;
+  const origText = btn.textContent;
+  btn.textContent = '◌ Preparing...';
+
+  try {
+    const imgs = Array.from(area.querySelectorAll('img'));
+    let loaded = 0;
+    btn.textContent = `◌ Loading (0/${imgs.length})`;
+    await Promise.all(imgs.map(async (img) => {
+      try {
+        if (!img.crossOrigin) img.crossOrigin = 'anonymous';
+        if (!img.complete || img.naturalWidth === 0) {
+          await new Promise((resolve) => {
+            const done = () => resolve();
+            img.addEventListener('load', done, { once: true });
+            img.addEventListener('error', done, { once: true });
+            setTimeout(done, 12000);
+          });
+        }
+        if (img.decode) { try { await img.decode(); } catch {} }
+      } catch {}
+      loaded++;
+      btn.textContent = `◌ Loading (${loaded}/${imgs.length})`;
+    }));
+
+    await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+
+    btn.textContent = '◌ Rendering...';
+    area.classList.add('exporting');
+
+    let canvas;
+    try {
+      canvas = await html2canvas(area, {
+        useCORS: true,
+        allowTaint: false,
+        backgroundColor: getComputedStyle(document.body).getPropertyValue('--paper').trim() || '#f4efe4',
+        scale: 2,
+        logging: false,
+        imageTimeout: 0,
+        width: area.scrollWidth,
+        height: area.scrollHeight,
+        windowWidth: area.scrollWidth,
+        windowHeight: area.scrollHeight,
+        scrollX: 0,
+        scrollY: 0,
+      });
+    } finally {
+      area.classList.remove('exporting');
+    }
+
+    const appNames = state.apps.filter((x) => !x.error)
+      .map((x) => safeName(x.name).slice(0, 15)).join('-');
+    const baseFilename = `assetledger-${appNames || 'export'}`;
+
+    if (format === 'pdf') {
+      btn.textContent = '◌ Building PDF...';
+      const { jsPDF } = window.jspdf;
+      // Let's keep the aspect ratio; calculate PDF page size from canvas
+      const cw = canvas.width, ch = canvas.height;
+      // Use A4 width as baseline (595 x 842 pt at 72dpi). Scale content to fit A4 width.
+      const pdfW = 595;
+      const pdfH = (ch * pdfW) / cw;
+      const pdf = new jsPDF({ orientation: pdfH > pdfW ? 'p' : 'l', unit: 'pt', format: [pdfW, pdfH] });
+      const dataUrl = canvas.toDataURL('image/jpeg', 0.92);
+      pdf.addImage(dataUrl, 'JPEG', 0, 0, pdfW, pdfH);
+      pdf.save(`${baseFilename}.pdf`);
+      showToast('PDF exported');
+    } else {
+      const mime = format === 'jpg' ? 'image/jpeg' : 'image/png';
+      const ext = format;
+      canvas.toBlob((blob) => {
+        triggerDownload(blob, `${baseFilename}.${ext}`);
+        showToast(`${ext.toUpperCase()} exported`);
+      }, mime, 0.95);
+    }
+  } catch (e) {
+    showError('Export failed: ' + e.message);
+  }
+
+  btn.disabled = false;
+  btn.textContent = '↓ Export ▾';
+}
+
+// ============== ZIP EXPORT ==============
+async function exportZip() {
+  el('exportMenu').classList.remove('open');
+  const validApps = state.apps.filter((a) => !a.error);
+  if (!validApps.length) return;
+
+  const btn = el('exportMenuBtn');
+  btn.disabled = true;
+  btn.textContent = '◌ Building ZIP...';
+
+  try {
+    const zip = new JSZip();
+
+    const tasks = [];
+    validApps.forEach((app) => {
+      const folder = zip.folder(safeName(app.name));
+      if (state.options.icon && app.icon) {
+        tasks.push({ url: app.icon, folder, filename: `${safeName(app.name)}_icon.jpg` });
+      }
+      if (state.options.banner && app.banner) {
+        tasks.push({ url: app.banner, folder, filename: `${safeName(app.name)}_banner.jpg` });
+      }
+      if (state.options.screenshots) {
+        app.screenshots.slice(0, state.screenshotCount).forEach((src, i) => {
+          tasks.push({ url: src, folder, filename: `${safeName(app.name)}_screenshot_${i + 1}.jpg` });
+        });
+      }
+      // Also add a metadata text file per app
+      const meta = [
+        `${app.name}`,
+        app.developer ? `by ${app.developer}` : '',
+        `Package: ${app.packageId}`,
+        `URL: ${app.url}`,
+        '',
+      ].filter(Boolean).join('\n');
+      folder.file('_info.txt', meta);
+    });
+
+    let done = 0;
+    btn.textContent = `◌ Downloading (0/${tasks.length})`;
+    await Promise.all(tasks.map(async (t) => {
+      const blob = await fetchImageBlob(t.url);
+      if (blob) t.folder.file(t.filename, blob);
+      done++;
+      btn.textContent = `◌ Downloading (${done}/${tasks.length})`;
+    }));
+
+    btn.textContent = '◌ Compressing...';
+    const zipBlob = await zip.generateAsync({ type: 'blob', compression: 'DEFLATE', compressionOptions: { level: 6 } });
+    const names = validApps.map((x) => safeName(x.name).slice(0, 15)).join('-');
+    triggerDownload(zipBlob, `assetledger-${names || 'export'}.zip`);
+    showToast('ZIP exported');
+  } catch (e) {
+    showError('ZIP export failed: ' + e.message);
+  }
+
+  btn.disabled = false;
+  btn.textContent = '↓ Export ▾';
+}
+
+// ============== COPY / GALLERY / TOAST ==============
+function copyAllUrls() {
+  const lines = [];
+  state.apps.filter((a) => !a.error).forEach((app) => {
+    lines.push(`━━━ ${app.name} ━━━`);
+    if (app.developer) lines.push(`Developer: ${app.developer}`);
+    lines.push(`Package: ${app.packageId}`);
+    lines.push(`URL: ${app.url}`);
+    lines.push('');
+    if (state.options.icon && app.icon) lines.push(`Icon: ${app.icon}`);
+    if (state.options.banner && app.banner) lines.push(`Banner: ${app.banner}`);
+    if (state.options.screenshots) {
+      app.screenshots.slice(0, state.screenshotCount).forEach((s, i) =>
+        lines.push(`Screenshot ${i + 1}: ${s}`));
+    }
+    lines.push('');
+  });
+  navigator.clipboard.writeText(lines.join('\n')).then(() => {
+    showToast('URLs copied');
+    el('copyBtnText').textContent = '✓ Copied';
+    setTimeout(() => { el('copyBtnText').textContent = '⎘ Copy URLs'; }, 1800);
+  });
+}
+
+window.openGallery = function (appIdx, ssIdx) {
+  const app = state.apps.filter((a) => !a.error)[appIdx];
+  if (!app) return;
+  const items = [];
+  if (state.options.icon && app.icon) items.push({ url: app.icon, label: 'Icon', filename: `${safeName(app.name)}_icon.jpg` });
+  if (state.options.banner && app.banner) items.push({ url: app.banner, label: 'Feature Banner', filename: `${safeName(app.name)}_banner.jpg` });
+  if (state.options.screenshots) {
+    app.screenshots.slice(0, state.screenshotCount).forEach((s, i) =>
+      items.push({ url: s, label: `Screenshot ${i + 1}`, filename: `${safeName(app.name)}_screenshot_${i + 1}.jpg` }));
+  }
+  if (!items.length) return;
+  let flat = 0;
+  if (ssIdx === 'icon') flat = items.findIndex((x) => x.label === 'Icon');
+  else if (ssIdx === 'banner') flat = items.findIndex((x) => x.label === 'Feature Banner');
+  else flat = items.findIndex((x) => x.label === `Screenshot ${ssIdx + 1}`);
+  if (flat < 0) flat = 0;
+
+  state.gallery = { open: true, items, index: flat, appName: app.name, appIdx };
+  renderGallery();
+  el('gallery').classList.remove('hidden');
+  document.body.style.overflow = 'hidden';
+};
+
+function renderGallery() {
+  const { items, index, appName } = state.gallery;
+  if (!items.length) return;
+  const curr = items[index];
+  el('galleryImg').src = curr.url;
+  el('galleryImg').alt = curr.label;
+  el('galleryTitle').textContent = appName;
+  el('galleryCounter').textContent = `${curr.label} · ${index + 1} of ${items.length}`;
+  el('galleryPrev').disabled = index === 0;
+  el('galleryNext').disabled = index === items.length - 1;
+
+  const thumbs = el('galleryThumbs');
+  thumbs.innerHTML = '';
+  items.forEach((item, i) => {
+    const div = document.createElement('div');
+    div.className = 'gallery-thumb' + (i === index ? ' active' : '');
+    div.onclick = () => { state.gallery.index = i; renderGallery(); };
+    div.innerHTML = `<img src="${escapeHtml(item.url)}" alt="" loading="lazy" crossorigin="anonymous" />`;
+    thumbs.appendChild(div);
+    if (i === index) setTimeout(() => div.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' }), 50);
+  });
+}
+function navGallery(delta) {
+  const g = state.gallery;
+  const next = g.index + delta;
+  if (next < 0 || next >= g.items.length) return;
+  g.index = next;
+  renderGallery();
+}
+function closeGallery() {
+  state.gallery.open = false;
+  el('gallery').classList.add('hidden');
+  document.body.style.overflow = '';
+}
+function downloadGalleryCurrent() {
+  const { items, index } = state.gallery;
+  if (!items[index]) return;
+  downloadImage(items[index].url, items[index].filename);
+}
+
+function showToast(msg) {
+  const t = el('toast');
+  el('toastMsg').textContent = msg;
+  t.classList.remove('hidden');
+  clearTimeout(window._toastTimer);
+  window._toastTimer = setTimeout(() => t.classList.add('hidden'), 2200);
+}
+function showError(msg) {
+  const box = el('errorBox');
+  box.innerHTML = `<span style="font-weight:700; color: var(--accent);">⚠</span> <div>${escapeHtml(msg)}</div>`;
+  box.classList.remove('hidden');
+}
+function hideError() { el('errorBox').classList.add('hidden'); }
+
+document.addEventListener('keydown', (e) => {
+  if (!state.gallery.open) return;
+  if (e.key === 'Escape') closeGallery();
+  else if (e.key === 'ArrowLeft') navGallery(-1);
+  else if (e.key === 'ArrowRight') navGallery(1);
+});
+
+// ============== INIT ==============
+function init() {
+  // Apply persisted state to UI
+  applyOptionVisuals('icon');
+  applyOptionVisuals('banner');
+  applyOptionVisuals('screenshots');
+  el('ssCount').value = state.screenshotCount;
+  el('ssCountRow').style.display = state.options.screenshots ? 'flex' : 'none';
+  setScreenshotSize(state.screenshotSize);
+  el('layoutGrid').classList.toggle('on', state.layout === 'grid');
+  el('layoutRow').classList.toggle('on', state.layout === 'row');
+  el('numbersToggle').classList.toggle('on', state.showNumbers);
+  applyTheme(state.theme);
+  renderLinks();
+  el('bulkInput').addEventListener('input', updateBulkCount);
+  updateBulkCount();
+}
+
+init();
+</script>
+</body>
+</html>
