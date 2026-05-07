@@ -7,7 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300..700;1,9..144,300..700&family=JetBrains+Mono:wght@400;500&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-<script src="https://cdn.jsdelivr.net/npm/html2canvas-pro@1.5.10/dist/html2canvas-pro.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/modern-screenshot@4.5.5/dist/index.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <style>
@@ -1806,7 +1806,7 @@ function renderResults() {
 
   const footer = document.createElement('div');
   footer.className = 'footer-export';
-  footer.innerHTML = `Fetched with <em>Fetch Assets</em> ● BUILT AS A TOOL, USED LIKE A WEAPON.`;
+  footer.innerHTML = `Fetched with <em>Fetch Assets</em> ● BUILT AS A TOOL, USED LIKE A WEAPON. ●`;
   wrapper.appendChild(footer);
 
   resultsEl.appendChild(wrapper);
@@ -1892,16 +1892,24 @@ async function fetchImageBlob(url) {
 }
 
 // ============== FULL PAGE EXPORT (PNG/JPG/PDF) ==============
+// Uses modern-screenshot, which renders via the browser's native engine
+// (SVG <foreignObject> + canvas), so it handles modern CSS correctly:
+// oklch/oklab colors, color-mix, backdrop-filter, gradients, pseudo-elements,
+// box-shadows — all rendered properly without artifacts.
 async function exportFullPage(format) {
   el('exportMenu').classList.remove('open');
   const area = el('exportArea');
   if (!area) return;
+  if (!window.modernScreenshot) {
+    showError('Screenshot engine still loading — please retry in a second');
+    return;
+  }
   const btn = el('exportMenuBtn');
   btn.disabled = true;
-  const origText = btn.textContent;
   btn.textContent = '◌ Preparing...';
 
   try {
+    // Preload all images in the export area so they're rasterized cleanly.
     const imgs = Array.from(area.querySelectorAll('img'));
     let loaded = 0;
     btn.textContent = `◌ Loading (0/${imgs.length})`;
@@ -1927,73 +1935,26 @@ async function exportFullPage(format) {
     btn.textContent = '◌ Rendering...';
     area.classList.add('exporting');
 
+    const bg = getComputedStyle(document.body).getPropertyValue('--paper').trim() || '#f4efe4';
+
     let canvas;
     try {
-      canvas = await html2canvas(area, {
-        useCORS: true,
-        allowTaint: false,
-        backgroundColor: getComputedStyle(document.body).getPropertyValue('--paper').trim() || '#f4efe4',
+      canvas = await window.modernScreenshot.domToCanvas(area, {
         scale: 2,
-        logging: false,
-        imageTimeout: 0,
-        width: area.scrollWidth,
-        height: area.scrollHeight,
-        windowWidth: area.scrollWidth,
-        windowHeight: area.scrollHeight,
-        scrollX: 0,
-        scrollY: 0,
-        // onclone runs against the cloned DOM that html2canvas actually renders.
-        // We surgically remove every hover-only / interactive element so they
-        // can't leak into the exported image regardless of CSS quirks
-        // (html2canvas does not support backdrop-filter, and sometimes drops
-        // class-based display:none rules on freshly-added classes).
-        onclone: (clonedDoc) => {
-          const cloneArea = clonedDoc.getElementById('exportArea');
-          if (!cloneArea) return;
-          // Remove every kind of overlay/UI we don't want in the final image
+        backgroundColor: bg,
+        // CORS handling for play-lh.googleusercontent.com images
+        fetch: { requestInit: { mode: 'cors' } },
+        // Mutate the cloned tree before rasterization to remove
+        // hover-only buttons that shouldn't appear in the final image.
+        onCloneNode: (cloned) => {
+          if (!cloned || !cloned.querySelectorAll) return;
           const killSelectors = [
-            '.ss-dl',         // hover download buttons on screenshots
-            '.banner-dl',     // banner download button
-            '.app-actions',   // per-app "All" + "✕" buttons
-            '.icon-block .btn-ghost', // "↓ Download" link beside icon
+            '.ss-dl',
+            '.banner-dl',
+            '.app-actions',
+            '.icon-block .btn-ghost',
           ];
-          cloneArea.querySelectorAll(killSelectors.join(',')).forEach((n) => n.remove());
-
-          // Strip backdrop-filter from any remaining element — it's not
-          // supported by html2canvas and renders as a solid block.
-          cloneArea.querySelectorAll('*').forEach((node) => {
-            if (node.style) {
-              node.style.backdropFilter = 'none';
-              node.style.webkitBackdropFilter = 'none';
-            }
-          });
-
-          // Inject a stylesheet that disables decorative effects html2canvas-pro
-          // mishandles, which otherwise leak into the export as visible smudges
-          // or gradient strips bleeding onto the screenshot tiles.
-          const fixStyles = clonedDoc.createElement('style');
-          fixStyles.textContent = `
-            /* Pseudo-elements (e.g. the orange accent strip on .app-card::before)
-               occasionally render at wrong z-positions in html2canvas-pro,
-               causing dark artifacts on adjacent tiles. */
-            #exportArea .app-card::before,
-            #exportArea .app-card::after { display: none !important; }
-            /* Box-shadows around screenshot tiles can spill as solid grey
-               blocks instead of soft shadows. Drop them in the export. */
-            #exportArea .ss-thumb,
-            #exportArea .icon-display,
-            #exportArea .banner-wrap,
-            #exportArea .app-icon-small,
-            #exportArea .app-card { box-shadow: none !important; }
-            /* Belt-and-suspenders for backdrop-filter */
-            #exportArea * {
-              backdrop-filter: none !important;
-              -webkit-backdrop-filter: none !important;
-            }
-            /* Ensure tiles render against the paper background, no transparency */
-            #exportArea .ss-thumb { background: var(--paper-sunk, #ebe5d5); }
-          `;
-          (clonedDoc.head || clonedDoc.body).appendChild(fixStyles);
+          cloned.querySelectorAll(killSelectors.join(',')).forEach((n) => n.remove());
         },
       });
     } finally {
@@ -2007,9 +1968,7 @@ async function exportFullPage(format) {
     if (format === 'pdf') {
       btn.textContent = '◌ Building PDF...';
       const { jsPDF } = window.jspdf;
-      // Let's keep the aspect ratio; calculate PDF page size from canvas
       const cw = canvas.width, ch = canvas.height;
-      // Use A4 width as baseline (595 x 842 pt at 72dpi). Scale content to fit A4 width.
       const pdfW = 595;
       const pdfH = (ch * pdfW) / cw;
       const pdf = new jsPDF({ orientation: pdfH > pdfW ? 'p' : 'l', unit: 'pt', format: [pdfW, pdfH] });
