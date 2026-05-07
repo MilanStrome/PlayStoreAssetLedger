@@ -1806,7 +1806,7 @@ function renderResults() {
 
   const footer = document.createElement('div');
   footer.className = 'footer-export';
-  footer.innerHTML = `Fetched with <em>Fetch Assets</em> ● BUILT AS A TOOL, USED LIKE A WEAPON. ●●`;
+  footer.innerHTML = `Fetched with <em>Fetch Assets</em> ● BUILT AS A TOOL, USED LIKE A WEAPON.`;
   wrapper.appendChild(footer);
 
   resultsEl.appendChild(wrapper);
@@ -1967,6 +1967,33 @@ async function exportFullPage(format) {
               node.style.webkitBackdropFilter = 'none';
             }
           });
+
+          // Inject a stylesheet that disables decorative effects html2canvas-pro
+          // mishandles, which otherwise leak into the export as visible smudges
+          // or gradient strips bleeding onto the screenshot tiles.
+          const fixStyles = clonedDoc.createElement('style');
+          fixStyles.textContent = `
+            /* Pseudo-elements (e.g. the orange accent strip on .app-card::before)
+               occasionally render at wrong z-positions in html2canvas-pro,
+               causing dark artifacts on adjacent tiles. */
+            #exportArea .app-card::before,
+            #exportArea .app-card::after { display: none !important; }
+            /* Box-shadows around screenshot tiles can spill as solid grey
+               blocks instead of soft shadows. Drop them in the export. */
+            #exportArea .ss-thumb,
+            #exportArea .icon-display,
+            #exportArea .banner-wrap,
+            #exportArea .app-icon-small,
+            #exportArea .app-card { box-shadow: none !important; }
+            /* Belt-and-suspenders for backdrop-filter */
+            #exportArea * {
+              backdrop-filter: none !important;
+              -webkit-backdrop-filter: none !important;
+            }
+            /* Ensure tiles render against the paper background, no transparency */
+            #exportArea .ss-thumb { background: var(--paper-sunk, #ebe5d5); }
+          `;
+          (clonedDoc.head || clonedDoc.body).appendChild(fixStyles);
         },
       });
     } finally {
