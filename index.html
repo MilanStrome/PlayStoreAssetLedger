@@ -7,7 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300..700;1,9..144,300..700&family=JetBrains+Mono:wght@400;500&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/html2canvas-pro@1.5.10/dist/html2canvas-pro.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <style>
@@ -882,7 +882,7 @@ body::before {
 
 /* ========== STATUS / ERROR ========== */
 .err-box {
-  background: color-mix(in srgb, var(--accent) 8%, var(--paper-raised));
+  background: rgba(195, 74, 30, 0.08);
   border-left: 3px solid var(--accent);
   padding: 14px 18px;
   font-size: 13px;
@@ -892,6 +892,9 @@ body::before {
   align-items: flex-start;
   gap: 12px;
   color: var(--ink);
+}
+[data-theme="dark"] .err-box {
+  background: rgba(232, 112, 74, 0.12);
 }
 
 .loader {
@@ -1803,7 +1806,7 @@ function renderResults() {
 
   const footer = document.createElement('div');
   footer.className = 'footer-export';
-  footer.innerHTML = `Fetched with <em>Fetch Assets</em> ● BUILT AS A TOOL, USED LIKE A WEAPON. ●`;
+  footer.innerHTML = `Fetched with <em>Fetch Assets</em> ● BUILT AS A TOOL, USED LIKE A WEAPON. ●●`;
   wrapper.appendChild(footer);
 
   resultsEl.appendChild(wrapper);
